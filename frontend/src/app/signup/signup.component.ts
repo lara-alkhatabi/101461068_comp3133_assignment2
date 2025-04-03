@@ -6,9 +6,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 const SIGNUP_MUTATION = gql`
-  mutation signup($username: String!, $email: String!, $password: String!) {
+  mutation Signup($username: String!, $email: String!, $password: String!) {
     signup(username: $username, email: $email, password: $password) {
       username
+      email
     }
   }
 `;
@@ -24,26 +25,39 @@ export class SignupComponent {
   email = '';
   password = '';
   error = '';
+  loading = false;
 
   constructor(private apollo: Apollo, private router: Router) {}
 
   signup() {
-    console.log('SIGNING UP WITH:', this.username, this.email, this.password);
+    this.error = '';
+    this.loading = true;
 
+    // ✅ Basic client-side validation
+    if (!this.username.trim() || !this.email.trim() || !this.password.trim()) {
+      this.error = 'All fields are required.';
+      this.loading = false;
+      return;
+    }
+
+    // ✅ Trigger GraphQL signup mutation
     this.apollo.mutate({
       mutation: SIGNUP_MUTATION,
       variables: {
-        username: this.username,
-        email: this.email,
-        password: this.password,
-      },
+        username: this.username.trim(),
+        email: this.email.trim().toLowerCase(),
+        password: this.password, // hash happens on backend
+      }
     }).subscribe({
       next: () => {
+        this.loading = false;
         this.router.navigate(['/login']);
       },
       error: (err) => {
+        this.loading = false;
+        const message = err?.graphQLErrors?.[0]?.message || 'Signup failed. Try again.';
+        this.error = message;
         console.error('Signup error:', err);
-        this.error = 'Signup failed. Try again.';
       }
     });
   }
